@@ -3,6 +3,7 @@ require 'net/http'
 require 'cgi'
 require 'optparse'
 require 'date'
+require 'inquirer'
 
 options = {}
 OptionParser.new do |opts|
@@ -583,42 +584,141 @@ class Shows
   end
 end
 
-class Main
-  def self.print_releases(releases, offset = 0)
-    releases.each_index {
-      |i|
-      next if i < offset
-      break if i > offset+19
-      puts "#{i+1}.  #{releases[i].first}"
-    }
+class List
+  def run clear, response
+    # finish if there's nothing to do
+    return nil if Array(@elements).empty?
+
+    get_next = false
+    get_prev = false
+    quit = false
+
+    # hides the cursor while prompting
+    IOHelper.without_cursor do
+      # render the
+      IOHelper.render( update_prompt )
+      # loop through user input
+      IOHelper.read_key_while do |key|
+        @pos = (@pos - 1) % @elements.length if key == "up"
+        @pos = (@pos + 1) % @elements.length if key == "down"
+        get_next = (key == "down" && @pos == 0) || (key == "right")
+        get_prev = (key == "up" && @pos == 0) || (key == "left")
+
+        IOHelper.rerender( update_prompt )
+        # we are done if the user hits return
+
+        quit = key == "q"
+        get_next = get_next || (key == "n")
+        get_prev = get_prev || (key == "p")
+
+        key != "return" && !quit && !get_next && !get_prev
+      end
+    end
+
+    # clear the final prompt and the line
+    IOHelper.clear if clear
+
+    # show the answer
+    IOHelper.render( update_response ) if response && !get_next && !get_prev
+
+    # return the index of the selected item
+    return -1 if get_next
+    return -2 if get_prev
+    return -3 if quit
+    @pos
   end
 
-  def self.gets_from_array(elements, offset = 0)
-    if (elements.count == 0)
+  def self.list_paginate *args
+    List.ask_paginate *args
+  end
+
+  def self.ask_paginate question = nil, elements = [], opts = {}
+    l = List.new question, elements, opts[:renderer], opts[:rendererResponse]
+
+    l.all_elements = elements
+    l.page = 1
+    selected = -3
+
+    loop do
+      selected = l.run opts.fetch(:clear, true), opts.fetch(:response, true)
+      if selected == -1
+        l.page = l.page+1 if l.page < l.pages_count
+      elsif selected == -2
+        l.page = l.page-1 if l.page > 1
+      else
+        break
+      end
+    end
+
+    selected != -3 ? selected+l.offset : selected
+  end
+
+  def all_elements=(el)
+    @all_elements = el
+  end
+
+  def elements=(el)
+    @elements = el
+  end
+
+  def page
+    @page
+  end
+
+  def page=(p)
+    @page = p
+    @elements = self.current_page_elements
+  end
+
+  def pages_count
+    (@all_elements.count/self.elements_per_page).ceil
+  end
+
+  def offset
+    (@page-1)*self.elements_per_page
+  end
+
+  def elements_per_page
+    20
+  end
+
+  def current_page_elements
+    @all_elements[(self.offset)..-1].take(self.elements_per_page)
+  end
+
+  def update_prompt
+    # transform the list into
+    # {"value"=>..., "selected"=> true|false}
+    e = @elements.
+      # attach the array position
+      map.with_index(0).
+      map do |c,pos|
+        { "value"=>c, "selected" => pos == @pos }
+      end
+    # call the renderer
+    q = @question
+    q = q + " (page #{@page})" if @page && self.pages_count > 1
+    @prompt = @renderer.render(q, e)
+  end
+end
+
+class Main
+  def self.print_releases(releases)
+    shown_releases = releases.collect { |r| r.first }
+
+    if (shown_releases.count == 0)
       puts "No results."
       puts "----------------------------------------------------"
       exit
-    elsif (elements.count == 1)
+    elsif (shown_releases.count == 1)
       puts "Single result, proceeding..."
       puts "----------------------------------------------------"
-      return elements.first
+      return 1
     end
 
-    puts "----------------------------------------------------"
-    show_next = elements.count - offset > 19
-    message = "Choose [1-#{elements.count}]#{" or type 'n' to see the next items" if show_next}: "
-    chosen = nil
-    while true
-      print message
-      c = $stdin.gets
-      chosen = c.strip
-
-      exit if (chosen.downcase == "q")
-      break if show_next && (c == "\n" || chosen.downcase == "n")
-      break if (chosen.to_i > 0) && (chosen.to_i <= elements.count)
-    end
-
-    show_next && (chosen == "" || chosen.downcase == "n") ? true : elements[chosen.to_i-1]
+    selected = List.list_paginate "Choose a release (nav. using arrows and 'n', 'p') ", shown_releases
+    exit if selected == -3
+    selected
   end
 
   def self.groups_from_links(links)
@@ -636,11 +736,25 @@ class Main
   end
 
   def self.print_groups(groups)
-    groups.each_index {
-      |i|
-      files = groups[i][:files]
-      puts "#{i+1}. #{groups[i][:name]} (#{files.count} file#{'s' if files.count != 1})"
+    shown_groups = groups.collect {
+      |group|
+      files = group[:files]
+      "#{group[:name]} (#{files.count} file#{'s' if files.count != 1})"
     }
+
+    if (shown_groups.count == 0)
+      puts "No results."
+      puts "----------------------------------------------------"
+      exit
+    elsif (shown_groups.count == 1)
+      puts "Single result, proceeding..."
+      puts "----------------------------------------------------"
+      return 1
+    end
+
+    selected = List.list_paginate "Choose a file (nav. using arrows and 'n', 'p') ", shown_groups
+    exit if selected == -3
+    selected
   end
 end
 
@@ -695,14 +809,7 @@ begin
   filter = options[:filter]
   releases_offset = 0
   releases = Shows.on_demand(nil, filter, options[:movies])
-  chosen_release = nil
-  until !chosen_release.nil? && chosen_release != true
-    Main.print_releases(releases, releases_offset)
-    chosen_release = Main.gets_from_array(releases, releases_offset)
-    if (chosen_release == true)
-      releases_offset = releases_offset+20
-    end
-  end
+  chosen_release = releases[Main.print_releases(releases)]
 
   clear
 
@@ -711,8 +818,7 @@ begin
 
   links = Shows.on_demand(chosen_release.last)
   groups = Main.groups_from_links(links)
-  Main.print_groups(groups)
-  chosen_group = Main.gets_from_array(groups)
+  chosen_group = groups[Main.print_groups(groups)]
 
   clear
 
