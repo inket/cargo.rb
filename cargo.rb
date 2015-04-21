@@ -713,7 +713,7 @@ class Main
     elsif (shown_releases.count == 1)
       puts "Single result, proceeding..."
       puts "----------------------------------------------------"
-      return 1
+      return 0
     end
 
     selected = List.list_paginate "Choose a release (nav. using arrows and 'n', 'p') ", shown_releases
@@ -749,7 +749,7 @@ class Main
     elsif (shown_groups.count == 1)
       puts "Single result, proceeding..."
       puts "----------------------------------------------------"
-      return 1
+      return 0
     end
 
     selected = List.list_paginate "Choose a file (nav. using arrows and 'n', 'p') ", shown_groups
@@ -772,7 +772,6 @@ def wget_download(url, filename)
 end
 
 begin
-
   puts "Cargo with #{options[:axel] ? 'Axel' : 'Wget'}"
   puts "----------------------------------------------------"
 
@@ -837,8 +836,6 @@ begin
   }
 
   puts "Done!"
-rescue StandardError => e
-  puts e
 rescue Interrupt => e
   puts e
 end
