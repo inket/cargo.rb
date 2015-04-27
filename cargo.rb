@@ -763,12 +763,11 @@ def clear
 end
 
 def axel_download(url, filename)
-  "#{Dir.home}/Downloads"
-  system("axel -o \"./#{filename}\" \"#{url}\"")
+  system("axel -o \"#{Dir.home}/Downloads/#{filename}\" \"#{url}\"")
 end
 
 def wget_download(url, filename)
-  system("wget \"#{url}\" --continue --no-proxy --timeout 30 -O \"./#{filename}\"")
+  system("wget \"#{url}\" --continue --no-proxy --timeout 30 -O \"#{Dir.home}/Downloads/#{filename}\"")
 end
 
 begin
