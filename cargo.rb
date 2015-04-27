@@ -13,10 +13,10 @@ OptionParser.new do |opts|
     options[:movies] = v
   end
 
-  opts.on("-a", "--axel", "Use 'axel' for the downloads instead of the default 'wget'") do |v|
-    options[:axel] = v
-    if (v && `which axel`.strip == "")
-      puts "Axel is not installed. Please install it with \`brew\` and try again."
+  opts.on("-w", "--wget", "Use 'wget' for the downloads instead of the default 'axel'") do |v|
+    options[:wget] = v
+    if (options[:wget] && `which wget`.strip == "")
+      puts "Wget is not installed. Please install it with \`brew\` and try again."
       exit
     end
   end
@@ -28,13 +28,17 @@ OptionParser.new do |opts|
   opts.separator ""
   opts.separator "Examples:"
   opts.separator "    cargo detective"
-  opts.separator "    cargo -a"
+  opts.separator "    cargo -w"
   opts.separator "    cargo -d http://uptobox.com/hrfow01yixy4 http://uptobox.com/hrfow01yixy4"
 end.parse!
 
-if (!options[:axel] && `which wget`.strip == "")
-  puts "Wget is not installed. Please install it with \`brew\` and try again."
-  exit
+if (!options[:wget] && `which axel`.strip == "")
+  puts "Axel is not installed. Defaulting to wget..."
+  options[:wget] = true
+  if (`which wget`.strip == "")
+    puts "Wget is not installed. Please install it with \`brew\` and try again."
+    exit
+  end
 end
 
 unless (ARGV.empty?)
@@ -771,7 +775,7 @@ def wget_download(url, filename)
 end
 
 begin
-  puts "Cargo with #{options[:axel] ? 'Axel' : 'Wget'}"
+  puts "Cargo with #{options[:wget] ? 'Wget' : 'Axel'}"
   puts "----------------------------------------------------"
 
   if (options[:urls])
@@ -839,10 +843,10 @@ begin
     |file|
     download_link = UpToBox.get_download_link(file)
 
-    if (options[:axel])
-      axel_download(download_link, file[:filename])
-    else
+    if (options[:wget])
       wget_download(download_link, file[:filename])
+    else
+      axel_download(download_link, file[:filename])
     end
   }
 
