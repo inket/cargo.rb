@@ -823,6 +823,18 @@ begin
   puts "You chose #{chosen_group[:name]}"
   puts "----------------------------------------------------"
 
+  scripts_count = `ps ax`.scan(/\/cargo.rb(?:\s|$)/).count
+  scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
+
+  if scripts_count > 1
+    puts "Waiting for other cargo download to finish..."
+    while scripts_count > 1
+      sleep(5)
+      scripts_count = `ps ax`.scan(/\/cargo.rb(?:\s|$)/).count
+      scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
+    end
+  end
+
   chosen_group[:files].each {
     |file|
     download_link = UpToBox.get_download_link(file)
