@@ -797,10 +797,10 @@ begin
         puts "Downloading #{file[:filename]}"
         download_link = UpToBox.get_download_link(file)
 
-        if (options[:axel])
-          axel_download(download_link, file[:filename])
-        else
+        if (options[:wget])
           wget_download(download_link, file[:filename])
+        else
+          axel_download(download_link, file[:filename])
         end
       }
     }
