@@ -21,7 +21,7 @@ OptionParser.new do |opts|
     end
   end
 
-  opts.on("-d", "--direct-download", "Download from the provided UpToBox links") do |links|
+  opts.on("-d", "--direct-download", "Download from the provided UpToBox/Go4Up links") do |links|
     options[:urls] = ARGV.join(" ")
   end
 
@@ -29,7 +29,7 @@ OptionParser.new do |opts|
   opts.separator "Examples:"
   opts.separator "    cargo detective"
   opts.separator "    cargo -w"
-  opts.separator "    cargo -d http://uptobox.com/hrfow01yixy4 http://uptobox.com/hrfow01yixy4"
+  opts.separator "    cargo -d http://uptobox.com/hrfow01yixy4 http://go4up.com/dl/7a3115e52d50"
 end.parse!
 
 if (!options[:wget] && `which axel`.strip == "")
@@ -71,7 +71,15 @@ end
 
 class LinkScanner
   def self.scan_for_ub_links(text)
-    text.scan(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).flatten.uniq
+    direct = text.scan(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).flatten.uniq
+    text.scan(/go4up.com\/dl\/[a-z\d]{12}/im).flatten.uniq.collect {
+      |go4up_link|
+      s = open("http://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s.scan(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).flatten.uniq
+
+      direct += s
+    }
+
+    direct
   end
 
   def self.get(links_of_interest)
@@ -633,7 +641,7 @@ class List
   end
 
   def self.list_paginate *args
-    List.ask_paginate *args
+    List.ask_paginate(*args)
   end
 
   def self.ask_paginate question = nil, elements = [], opts = {}
@@ -809,7 +817,6 @@ begin
   end
 
   filter = options[:filter]
-  releases_offset = 0
   releases = Shows.on_demand(nil, filter, options[:movies])
   chosen_release = releases[Main.print_releases(releases)]
 
