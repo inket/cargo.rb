@@ -282,7 +282,7 @@ class UpToBox
       rand = page.scan(/(?:'|")rand(?:'|") value=(?:'|")(.*?)(?:'|")/mi).flatten.first
       fname = page.scan(/(?:'|")fname(?:'|") value=(?:'|")(.*?)(?:'|")/mi).flatten.first
       size = page.scan(/para_title.*?\(\s*(.*?)\s*\)/im).flatten.first
-      cleaner = "?_?))skcor|gro|ten:?(.\\:?(yellavldd?_".reverse
+      cleaner = "?_?))looc|skcor|gro|ten:?(.\\:?(yellavldd?_".reverse
       filename = fname.gsub(/#{cleaner}/im, "")
 
       noextension = filename.split(".").take(filename.split(".").count-1).join(".")
@@ -410,7 +410,7 @@ end
 
 class Shows
   @@shows_cache_path = File.join(File.dirname(__FILE__), *%w[../cache/shows])
-  @@website = "skcor.yellavldd".reverse # don't attract search engines!
+  @@website = "looc.yellavldd".reverse # don't attract search engines!
   @@debug = false
 
   def self.sm_url
