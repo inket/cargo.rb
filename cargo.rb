@@ -1,3 +1,5 @@
+#!/usr/bin/env ruby
+
 require 'open-uri'
 require 'net/http'
 require 'cgi'
@@ -16,7 +18,7 @@ OptionParser.new do |opts|
   opts.on('-w', '--wget', "Use 'wget' for the downloads instead of the default 'axel'") do |v|
     options[:wget] = v
     if options[:wget] && `which wget`.strip == ''
-      puts "Wget is not installed. Please install it with \`brew\` and try again."
+      puts 'Wget is not installed. Please install it with `brew` and try again.'
       exit
     end
   end
@@ -35,14 +37,15 @@ end.parse!
 if !options[:wget] && `which axel`.strip == ''
   puts 'Axel is not installed. Defaulting to wget...'
   options[:wget] = true
-  if (`which wget`.strip == '')
-    puts "Wget is not installed. Please install it with \`brew\` and try again."
+  if `which wget`.strip == ''
+    puts 'Wget is not installed. Please install it with `brew` and try again.'
     exit
   end
 end
 
 options[:filter] = ARGV.join(' ') unless ARGV.empty?
 
+# A helper class for formatting exceptions in logs
 class PrettyError
   def initialize(message = nil, exception = StandardError.new, full_backtrace = false)
     @message = message
@@ -56,32 +59,30 @@ class PrettyError
     lines << "*Error: #{@exception}"
 
     if @exception.backtrace
-      if @full_backtrace
-        lines << "*Backtrace: \n\t" + @exception.backtrace.join("\n\t")
-      else
-        lines << '*Backtrace: ' + @exception.backtrace.first
-      end
+      line = '*Backtrace: ' + @exception.backtrace.first
+      line = "*Backtrace: \n\t" + @exception.backtrace.join("\n\t") if @full_backtrace
+      lines << line
     end
 
     "Caught Exception: #{@exception.class} {\n#{lines.join("\n")}\n}"
   end
 end
 
+# A link scanner for handling all the supported hosters and scanning for their links
 class LinkScanner
   def self.scan_for_ub_links(text)
-    direct = text.scan(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).flatten.uniq
-    text.scan(/go4up.com\/dl\/[a-z\d]{12}/im).flatten.uniq.collect { |go4up_link|
-      s = open("http://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s.scan(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).flatten.uniq
+    direct = text.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+    text.scan(%r{go4up.com/dl/[a-z\d]{12}}im).flatten.uniq.collect do |go4up_link|
+      s = open("http://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s
+      s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
-    }
+    end
 
     direct
   end
 
   def self.get(links_of_interest)
-    groups = UpToBox.check_urls(links_of_interest) || []
-
-    groups
+    UpToBox.check_urls(links_of_interest) || []
   rescue StandardError => e
     puts PrettyError.new("Couldn't check the given links.", e, true)
     nil
@@ -94,7 +95,13 @@ class LinkScanner
   end
 end
 
+# A helper class for formatting and syntax sugar
 class Helper
+  def self.put_header(message = nil)
+    puts message if message
+    puts '-' * 50
+  end
+
   # bytes -> human readable size
   def self.human_size(n, base = 8)
     return '0' if n.nil?
@@ -102,6 +109,7 @@ class Helper
     units = %w(B KB MB GB)
 
     unit = units[0]
+    unit_size = base == 8 ? 1024 : 1000
     size = n
 
     if n.instance_of? String
@@ -109,10 +117,10 @@ class Helper
       size = n[0..-2].to_f
     end
 
-    if (size >= 1024 && base == 8) || (size >= 1000 && base == 10)
-      human_size((base == 8 ? (size / 1024) : (size / 1000)).to_s + units[units.index(unit) + 1], base)
+    if size >= unit_size
+      human_size((size / unit_size).to_s + units[units.index(unit) + 1], base)
     else
-      if (size == size.to_i)
+      if size == size.to_i
         return size.to_i.to_s + unit
       else
         index = size.to_s.index('.')
@@ -120,9 +128,9 @@ class Helper
         return size.to_s[0..(index - 1)] + unit if units.index(unit) < 2
 
         begin
-          return size.to_s[0..(index + 2)] + unit
+          size.to_s[0..(index + 2)] + unit
         rescue
-          return size.to_s[0..(index + 1)] + unit
+          size.to_s[0..(index + 1)] + unit
         end
       end
     end
@@ -139,11 +147,11 @@ class Helper
       tmp = now - 86_400
       is_yesterday = (time.day == tmp.day && time.month == tmp.month && time.year == tmp.year)
 
-      if is_yesterday
-        day = 'yesterday'
-      else
-        day = time.strftime('%-d %b')
-      end
+      day = if is_yesterday
+              'yesterday'
+            else
+              time.strftime('%-d %b')
+            end
     end
 
     day + ' ' + (twelveclock ? time.strftime('%I:%M%P') : time.strftime('%H:%M'))
@@ -158,14 +166,11 @@ class Helper
     hours_ago = (diff / 3600).to_i
     minutes_ago = (diff / 60).to_i
 
-    r = nil
     if hours_ago < 24
-      r = hours_ago > 0 ? "#{hours_ago}h ago" : "#{minutes_ago}m ago"
+      hours_ago > 0 ? "#{hours_ago}h ago" : "#{minutes_ago}m ago"
     else
-      r = "#{hours_ago / 24}d ago"
+      "#{hours_ago / 24}d ago"
     end
-
-    r
   end
 
   def self.to_bytes(size)
@@ -174,14 +179,16 @@ class Helper
 
     return number.to_i if unit.empty?
 
-    if unit.downcase == 'k' || unit.downcase == 'kb'
-      return (number * 1024).to_i
-    elsif unit.downcase == 'm' || unit.downcase == 'mb'
-      return (number * 1024 * 1024).to_i
-    elsif unit.downcase == 'g' || unit.downcase == 'gb'
-      return (number * 1024 * 1024 * 1024).to_i
+    # units = ['b', 'k', 'm', 'g']
+    # 1024 ** (units.index(unit.downcase[0]) + 1)
+    if unit.casecmp('k').zero? || unit.casecmp('kb').zero?
+      (number * 1024).to_i
+    elsif unit.casecmp('m').zero? || unit.casecmp('mb').zero?
+      (number * 1024 * 1024).to_i
+    elsif unit.casecmp('g').zero? || unit.casecmp('gb').zero?
+      (number * 1024 * 1024 * 1024).to_i
     else
-      return number.to_i
+      number.to_i
     end
   end
 
@@ -200,7 +207,7 @@ class Helper
       if tries < max_tries
         retry
       else
-        puts e.to_s
+        puts PrettyError.new(nil, e)
       end
     end
   end
@@ -213,45 +220,21 @@ class Helper
       yield
     rescue StandardError => e
       tries += 1
-      if tries < max_tries
-        retry
-      else
-        raise e
-      end
+      retry if tries < max_tries
+      raise e
     end
-  end
-
-  # Kinda like OpenURI's open(url), except it allows to limit fetch size
-  # Solution found @ http://stackoverflow.com/a/8597459/528645
-  def self.open_uri(url, limit = 102_400)
-    uri = URI(url)
-    result = nil
-
-    require 'socket'
-
-    request = "GET #{uri.path} HTTP/1.1\r\n"
-    request += "Host: #{uri.host}\r\n"
-    request += "\r\n"
-
-    socket = TCPSocket.open(uri.host, uri.port)
-    socket.print(request)
-
-    buffer = ''
-    buffer += socket.read(1) until buffer.match("\r\n\r\n")
-
-    result = socket.read(limit)
-    result
   end
 end
 
+# UpToBox hoster support class
 class UpToBox
   def self.check_urls(urls)
     files = []
 
-    urls.each { |url|
-      next if url.match(/http\:\/\/(?:www\.)?uptobox\.com\/[a-z\d]{12}/im).nil?
+    urls.each do |url|
+      next if url.match(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).nil?
       files << check_file(url)
-    }
+    end
 
     organize(files.compact)
   end
@@ -259,79 +242,68 @@ class UpToBox
   def self.check_file(url)
     page, dead = nil
 
-    Helper.attempt_and_raise(3) {
+    Helper.attempt_and_raise(3) do
       resp = Net::HTTP.get_response(URI(url))
       page = resp.body
       dead = (resp.code.to_i != 200)
-    }
+    end
 
     id = url.split('/').last
 
-    if !dead
-      rand = page.scan(/(?:'|")rand(?:'|") value=(?:'|")(.*?)(?:'|")/mi).flatten.first
-      fname = page.scan(/(?:'|")fname(?:'|") value=(?:'|")(.*?)(?:'|")/mi).flatten.first
+    if dead
+      puts "#{url} - Dead link"
+      rand, filename, noextension = 'DEAD'
+      size = '0'
+    else
+      rand = page.scan(/(?:'|")rand(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
+      fname = page.scan(/(?:'|")fname(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
       size = page.scan(/para_title.*?\(\s*(.*?)\s*\)/im).flatten.first
       cleaner = '?_?))looc|skcor|gro|ten:?(.\\:?(yellavldd?_'.reverse
       filename = fname.gsub(/#{cleaner}/im, '')
 
-      noextension = filename.split('.').take(filename.split('.').count - 1).join('.')
-      if noextension.match(/part\d+$/)
-        noextension = noextension.split('.').take(noextension.split('.').count - 1).join('.')
-      end
-    else
-      puts "#{url} - Dead link"
-      rand, filename, noextension = 'DEAD'
-      size = '0'
+      noextension = filename.split('.')[0..-2].join('.')
+      noextension = noextension.split('.')[0..-2].join('.') if noextension =~ /part\d+$/
     end
 
     {
-      url: url,
-      id: id,
-      rand: rand,
-      fname: fname,
-      filename: filename,
-      noextension: noextension,
-      dead: dead,
-      size: Helper.to_bytes(size)
+      url: url, id: id, rand: rand,
+      fname: fname, filename: filename, noextension: noextension,
+      dead: dead, size: Helper.to_bytes(size)
     }
   end
 
   def self.organize(files)
     # detect multipart files and organize them in groups
     grouped_files = []
-    files.each { |file|
+    files.each do |file|
       if file[:dead]
         grouped_files << { name: file[:url], files: [], dead: true }
         next
       end
 
-      added = false
+      correct_group = grouped_files.find { |group| group[:name] == file[:noextension] }
+      if correct_group
+        correct_group[:files] << file
+        next
+      end
 
-      grouped_files.each { |group|
-        if group[:name] == file[:noextension]
-          group[:files] << file
-          added = true
-          break
-        end
-      }
-
-      next if added
-
-      new_group_name = (file[:filename] =~ /\.part\d+\.rar$/i) ? file[:noextension] : file[:filename]
+      is_multipart_name = (file[:filename] =~ /\.part\d+\.rar$/i)
+      new_group_name = is_multipart_name ? file[:noextension] : file[:filename]
       grouped_files << { name: new_group_name, files: [file] }
-    }
+    end
 
     # calculate total size for each group
-    grouped_files.each { |group|
+    grouped_files.each do |group|
       group[:size] = 0
       group[:host] = 'UpToBox'
 
-      group[:files].each { |file|
+      group[:files].each do |file|
         group[:size] += file[:size].to_i
-      }
+      end
 
+      group[:noextension] = group[:files].first[:noextension]
       group[:name] = group[:files].first[:filename] if group[:files].count == 1
-    }
+    end
 
     grouped_files
   end
@@ -341,14 +313,17 @@ class UpToBox
 
     directlink = nil
 
-    Helper.attempt(3) {
+    Helper.attempt(3) do
+      result = nil
+
       loop do
         uri = URI(file[:url])
         http = Net::HTTP.new(uri.host)
-        data = "rand=#{file[:rand]}&op=download2&id=#{file[:id]}&referer=&method_free=&method_premium&down_direct=1&fname=#{file[:fname]}"
-        result = http.post(uri.path, data, { 'Referer' => file[:url] })
+        data = "rand=#{file[:rand]}&op=download2&id=#{file[:id]}&referer="\
+               "&method_free=&method_premium&down_direct=1&fname=#{file[:fname]}"
+        result = http.post(uri.path, data, 'Referer' => file[:url])
 
-        wait_message = result.body.scan(/(You have to wait.*?)<\/font>/i).flatten.first
+        wait_message = result.body.scan(%r{(You have to wait.*?)</font>}i).flatten.first
         wait = !wait_message.nil?
 
         skipped_countdown = !result.body.scan(/Skipped countdown/i).flatten.first.nil?
@@ -364,12 +339,12 @@ class UpToBox
         end
       end
 
-      directlink = result.body.scan(/(http:\/\/.{1,10}\.uptobox.com\/d\/.*?)(?:'|")/i).flatten.first
+      directlink = result.body.scan(%r{(http://.{1,10}\.uptobox.com/d/.*?)(?:'|")}i).flatten.first
 
       if !directlink || !directlink.include?('uptobox.com/d/')
-        fail StandardError.new("Couldn't get direct link for download.")
+        raise StandardError, "Couldn't get direct link for download."
       end
-    }
+    end
 
     if (directlink.nil? || directlink.empty?) && !last_time
       puts 'Trying again with a new download session...'
@@ -391,178 +366,94 @@ class UpToBox
   end
 end
 
+# Handling the source website's loading, scanning and other tasks.
 class Shows
-  @@shows_cache_path = File.join(File.dirname(__FILE__), *%w(../cache/shows))
-  @@website = 'looc.yellavldd'.reverse # don't attract search engines!
-  @@debug = false
+  @website = 'looc.yellavldd'.reverse # don't attract search engines!
+  @us_regex = /(?:-|\.)S\d{2}(E\d{2}){1,2}(?:-|\.)/i
+  @uk_regex = /(?:-|\.)\d{1,2}x\d{2}(?:-|\.)/i
+  @other_regex = /(?:-|\.)\d{4}(?:-|\.)\d{2}(?:-|\.)\d{2}(?:-|\.)/i
+  @strict_us_regex = /\A[^\s]+(?:-|\.)S\d{2}(E\d{2}){1,2}(?:-|\.)[^\s]+\z/i
+  @strict_uk_regex = /\A[^\s]+(?:-|\.)\d{1,2}x\d{2}(?:-|\.)[^\s]+\z/i
+  @strict_other_regex = /\A[^\s]+(?:-|\.)\d{4}(?:-|\.)\d{2}(?:-|\.)\d{2}(?:-|\.)[^\s]+\z/i
+  @weird_regex = /Download (.*?) Here/i
 
   def self.sm_url
     month = Time.now.month.to_s
     month = "0#{month}" if month.length == 1
 
-    "http://www.#{@@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
+    "http://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
   end
 
   def self.old_sm_url
     month = (Time.now.month - 1).to_s
     month = "0#{month}" if month.length == 1
 
-    "http://www.#{@@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
+    "http://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
   end
 
-  def self.check_page_for_relevant_links(source, release_names, page_name, fallback)
-    source = source.scan(/<div\sclass=(?:\"|')cont cl(?:\"|')>(.*?)<div\sclass=(?:\"|')bot cl(?:\"|')/im).flatten
-    source = source.first.gsub(/\n/, '').gsub(/<br\s?\/?>/, '').strip
-    parts = source.split(/<hr\s*?\/?>/im)
-
-    sd_releases = []
-    hd_releases = []
-    release_names.each { |r_name|
-      r_name.include?('720p') ? hd_releases << r_name : sd_releases << r_name
-    }
-
-    valid_releases = hd_releases # will check the HD releases
-    if hd_releases.empty? # unless there's no HD releases :(
-      if !fallback # in that case, we wait for them to be uploaded
-        puts '720p version still not uploaded... will check later...' if @@debug
-        return nil
-      else # unless we already waited A LOT. Then, SD releases will do
-        puts "Couldn't find 720p version, falling back to anything else..." if @@debug
-        valid_releases = sd_releases
-      end
-    end
-
-    groups = nil
-    chosen_release = nil
-    valid_releases.each { |release|
-      relevant_part = parts[release_names.index(release)]
-      if !relevant_part || !relevant_part.include?(release)
-        parts.each { |part|
-          relevant_part = part if part.include?(release)
-        }
-      end
-
-      # process the 1-click links and the multiparts alone
-      mirrors = [relevant_part.gsub(/info3.*/im, ''), relevant_part.gsub(/.*info3/im, '')]
-
-      mirrors.each { |mirror|
-        groups = catch(:groups) {
-          links = LinkScanner.scan_for_ub_links(mirror)
-          groups = LinkScanner.get(links)
-          throw(:groups, groups) unless links.empty? || groups.first[:dead]
-
-          throw(:groups)
-        }
-
-        break if groups # no need to check the multi-part links cause we got the 1-click one
-      }
-
-      chosen_release = release
-      break if groups
-    }
-
-    if groups.nil? || groups.empty?
-      puts "No valid links found for #{page_name}."
-      return nil
-    end
-
-    best_group = groups.first
-    groups.each { |group|
-      best_group = group if group[:size] > best_group[:size]
-    }
-
-    {
-      files: best_group[:files],
-      name: chosen_release,
-      reference: page_name,
-      host: best_group[:host]
-    }
-  end
-
-  def self.check_page_for_release_names(source, show_looking_for, _expected_release)
-    first_release_name = source.scan(/<h1>(.*?)<\/h1>/im).flatten.first
-    first_release_name = first_release_name.split('&#038;').first if first_release_name
-
-    source = source.scan(/<div\sclass=(?:\"|')cont cl(?:\"|')>(.*?)<div\sclass=(?:\"|')bot cl(?:\"|')/im).flatten
-    fail StandardError.new("Couldn't find release info") if source.empty?
-
-    # US release naming convention: show.name.S01E01
-    us_regex = /.*[\.\s]S\d\dE\d\d.*/i
-    # UK release naming convention: show_name.1x01
-    uk_regex = /[\.\s]\d\d?.{1,2}\d\d.*/i
-    # Other release naming conventions, e.g. show.name.yyyy.mm.dd
-    other_regex = Regexp.new('^' + show_looking_for.gsub(/\./, '[\\.\\s]') + '[\\.\\s].*', true)
-
-    source = source.first.gsub(/\n/, '').strip
-    bolded_parts = source.scan(/<strong>(.*?)<\/strong>/).flatten
-    release_names = [first_release_name]
-
-    bolded_parts.each { |part|
-      part.strip.split(/<br\s?\/?>/im).each { |p|
-        release_names << p.scan(us_regex)
-        release_names << p.scan(uk_regex)
-        release_names << p.scan(other_regex)
-      }
-    }
-
-    release_names = release_names.flatten.uniq.compact
-
-    release_names
-  end
-
-  def self.on_demand(reference = nil, filter = nil, show_movies = false)
+  def self.on_demand(filter = nil, show_movies = false)
     result = []
 
-    if reference.nil?
-      sitemap = open(sm_url).read.to_s
-      releases = sitemap.scan(/<loc>(http\:\/\/(?:www\.)?#{@@website.gsub(".", "\\.")}\/([^<]+?))\/<\/loc>.*?<lastmod>(.*?)<\/lastmod>/im).uniq
+    website = @website.gsub('.', '\\.')
+    sm_regex = %r{<loc>(http://(?:www\.)?#{website}/([^<]+?))/</loc>.*?<lastmod>(.*?)</lastmod>}im
 
-      sitemap = open(old_sm_url).read.to_s
-      releases += sitemap.scan(/<loc>(http\:\/\/(?:www\.)?#{@@website.gsub(".", "\\.")}\/([^<]+?))\/<\/loc>.*?<lastmod>(.*?)<\/lastmod>/im).uniq
+    sitemap = open(sm_url).read.to_s
+    releases = sitemap.scan(sm_regex).uniq
+    sitemap = open(old_sm_url).read.to_s
+    releases += sitemap.scan(sm_regex).uniq
 
-      # only keep shows in the array if not specified
-      unless show_movies
-        us_regex = /-S\d{2}(E\d{2}){1,2}-/i
-        uk_regex = /-\d{1,2}x\d{2}-/i
-        other_regex = /-\d{4}-\d{2}-\d{2}-/i
-        releases = releases.collect { |release|
-          rname = release[1]
-          release if (rname =~ us_regex) || (rname =~ uk_regex) || (rname =~ other_regex)
-        }.compact.take(200)
+    # only keep shows in the array if not specified
+    unless show_movies
+      releases = releases.collect do |release|
+        rname = release[1]
+        release if (rname =~ @us_regex) || (rname =~ @uk_regex) || (rname =~ @other_regex)
+      end.compact.take(200)
+    end
+
+    releases.each do |_url, release_name, lastmod|
+      formatted_name = release_name.gsub(/-|_|\./, ' ')
+      parts = formatted_name.split(' ').compact
+
+      parts = parts.collect do |word|
+        word = word.capitalize unless %w(and of with in x264).include?(word)
+        word = word.upcase if %w(au us uk ca hdtv xvid pdtv web dl).include?(word.downcase)
+        word = word.upcase if word =~ /s\d{2}e\d{2}/i
+        word
       end
 
-      releases.each { |_url, release_name, lastmod|
-        formatted_name = release_name.gsub(/-|_|\./, ' ')
-        parts = formatted_name.split(' ').compact
+      parts << parts.pop.upcase unless parts.empty?
 
-        parts = parts.collect { |word|
-          word = word.capitalize unless %w(and of with in x264).include?(word)
-          word = word.upcase if %w(au us uk ca hdtv xvid pdtv web dl).include?(word.downcase)
-          word = word.upcase if word =~ /s\d{2}e\d{2}/i
-          word
-        }
+      formatted_name = parts.join(' ')
 
-        parts << parts.pop.upcase unless parts.empty?
-
-        formatted_name = parts.join(' ')
-
-        if filter.nil? || (filter && formatted_name.downcase.include?(filter.downcase))
-          result << ["(#{Helper.relative_time(DateTime.parse(lastmod).to_time)}) #{formatted_name}", release_name]
-        end
-      }
-    else
-      source = (open "http://#{@@website}/#{CGI.escape(reference)}").read.to_s
-
-      # remove sections that contain multipart links because we have better one-click links
-      source = source.gsub(/info3.*?info2/im, '')
-
-      result = LinkScanner.scan_for_ub_links(source)
+      if filter.nil? || (filter && formatted_name.downcase.include?(filter.downcase))
+        relative_time = Helper.relative_time(DateTime.parse(lastmod).to_time)
+        result << ["(#{relative_time}) #{formatted_name}", release_name]
+      end
     end
 
     result
   end
+
+  def self.releases_for(reference)
+    source = (open "http://#{@website}/#{CGI.escape(reference)}").read.to_s
+
+    # remove sections that contain multipart links because we have better one-click links
+    source = source.gsub(/info3.*?info2/im, '')
+
+    # try to get the correct names of the files
+    possible_release_names = source.scan(%r{<strong>(.*?)</strong>}im).flatten
+    possible_release_names.collect! do |rname|
+      rname =~ @weird_regex ? rname.match(@weird_regex)[1] : rname
+    end
+    possible_release_names.keep_if do |rname|
+      (rname =~ @strict_us_regex) || (rname =~ @strict_uk_regex) || (rname =~ @strict_other_regex)
+    end
+
+    [LinkScanner.scan_for_ub_links(source), possible_release_names]
+  end
 end
 
+# A selection menu/paginator class based on Inquirer with custom actions
 class List
   def run(clear, response)
     # finish if there's nothing to do
@@ -672,52 +563,71 @@ class List
   end
 end
 
+# The class handling the main tasks of the script
 class Main
   def self.print_releases(releases)
     shown_releases = releases.collect(&:first)
 
-    if (shown_releases.count == 0)
-      puts 'No results.'
-      puts '----------------------------------------------------'
+    if shown_releases.count == 0
+      Helper.put_header 'No results.'
       exit
-    elsif (shown_releases.count == 1)
-      puts 'Single result, proceeding...'
-      puts '----------------------------------------------------'
+    elsif shown_releases.count == 1
+      Helper.put_header 'Single result, proceeding...'
       return 0
     end
 
-    selected = List.list_paginate "Choose a release (nav. using arrows and 'n', 'p') ", shown_releases
+    selected = List.list_paginate "Choose a release (nav. using arrows and 'n', 'p') ",
+                                  shown_releases
     exit if selected == -3
     selected
   end
 
-  def self.groups_from_links(links)
+  def self.groups_from_links(links, release_names = nil)
     if links.empty? || links.nil?
       puts 'No links'
       exit
     end
     groups = LinkScanner.get(links)
     if groups.nil?
-      puts 'No groups'
+      puts 'No valid links'
       exit
+    end
+
+    match_groups_with_releases(groups, release_names)
+  end
+
+  def self.match_groups_with_releases(groups, releases)
+    return groups unless releases
+
+    groups.each do |group|
+      group_name = group[:noextension].downcase.split(/[-\.]/)
+      releases.each do |rname|
+        next unless rname.downcase.split(/[-\.]/).last == group_name.last
+
+        r720 = rname.downcase.include?('720p')
+        r1080 = rname.downcase.include?('1080p')
+        g720 = group_name.include?('720p')
+        g1080 = group_name.include?('1080p')
+        if (r720 && g720) || (r1080 && g1080) || (!r720 && !r1080 && !g720 && !g1080)
+          group[:name] = rname
+        end
+      end
     end
 
     groups
   end
 
   def self.print_groups(groups)
-    shown_groups = groups.collect { |group|
+    shown_groups = groups.collect do |group|
       files = group[:files]
       "#{group[:name]} (#{files.count} file#{'s' if files.count != 1})"
-    }
+    end
 
-    if (shown_groups.count == 0)
-      puts 'No results.'
-      puts '----------------------------------------------------'
+    if shown_groups.count == 0
+      Helper.put_header 'No results.'
       exit
-    elsif (shown_groups.count == 1)
-      puts 'Single result, proceeding...'
-      puts '----------------------------------------------------'
+    elsif shown_groups.count == 1
+      Helper.put_header 'Single result, proceeding...'
       return 0
     end
 
@@ -728,20 +638,22 @@ class Main
 end
 
 def clear
-  system('clear') or system('cls')
+  system('clear') || system('cls')
 end
 
 def axel_download(url, filename)
-  system("axel -o \"#{Dir.home}/Downloads/#{filename}\" \"#{url}\"")
+  download_path = "#{Dir.home}/Downloads/#{filename}"
+  system("axel -o \"#{download_path}\" \"#{url}\"")
 end
 
 def wget_download(url, filename)
-  system("wget \"#{url}\" --continue --no-proxy --timeout 30 -O \"#{Dir.home}/Downloads/#{filename}\"")
+  download_path = "#{Dir.home}/Downloads/#{filename}"
+  params = "--continue --no-proxy --timeout 30 -O \"#{download_path}\""
+  system("wget \"#{url}\" #{params}")
 end
 
 begin
-  puts "Cargo with #{options[:wget] ? 'Wget' : 'Axel'}"
-  puts '----------------------------------------------------'
+  Helper.put_header "Cargo with #{options[:wget] ? 'Wget' : 'Axel'}"
 
   if options[:urls]
     text = options[:urls]
@@ -749,13 +661,13 @@ begin
     puts "Links: \n#{links.join("\n")}"
 
     groups = Main.groups_from_links(links)
-    puts '----------------------------------------------------'
+
+    Helper.put_header
     puts 'Found:'
-    groups.each { |group|
-      puts group[:name]
-    }
-    groups.each { |group|
-      group[:files].each { |file|
+
+    groups.each { |group| puts group[:name] }
+    groups.each do |group|
+      group[:files].each do |file|
         puts "Downloading #{file[:filename]}"
         download_link = UpToBox.get_download_link(file)
 
@@ -764,50 +676,51 @@ begin
         else
           axel_download(download_link, file[:filename])
         end
-      }
-    }
+      end
+    end
     puts 'Done!'
     exit
   end
 
   filter = options[:filter]
-  releases = Shows.on_demand(nil, filter, options[:movies])
+  releases = Shows.on_demand(filter, options[:movies])
   chosen_release = releases[Main.print_releases(releases)]
 
   clear
 
-  puts "You chose #{chosen_release.first}"
-  puts '----------------------------------------------------'
+  Helper.put_header "You chose #{chosen_release.first}"
 
-  links = Shows.on_demand(chosen_release.last)
-  groups = Main.groups_from_links(links)
+  links, release_names = Shows.releases_for(chosen_release.last)
+  groups = Main.groups_from_links(links, release_names)
   chosen_group = groups[Main.print_groups(groups)]
 
   clear
 
-  puts "You chose #{chosen_group[:name]}"
-  puts '----------------------------------------------------'
+  Helper.put_header "You chose #{chosen_group[:name]}"
 
-  scripts_count = `ps ax`.scan(/\/cargo.rb(?:\s|$)/).count
+  scripts_count = `ps ax`.scan(%r{/cargo.rb(?:\s|$)}).count
   scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
 
   if scripts_count > 1
     puts 'Waiting for other cargo download to finish...'
     while scripts_count > 1
       sleep(5)
-      scripts_count = `ps ax`.scan(/\/cargo.rb(?:\s|$)/).count
+      scripts_count = `ps ax`.scan(%r{/cargo.rb(?:\s|$)}).count
       scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
     end
   end
 
-  chosen_group[:files].each { |file|
+  chosen_group[:files].each do |file|
     download_link = UpToBox.get_download_link(file)
+    filename = file[:filename]
+    filename.gsub!(/.+?(?=\.(?:part|mkv|mp4))/, chosen_group[:name])
+
     if options[:wget]
-      wget_download(download_link, file[:filename])
+      wget_download(download_link, filename)
     else
-      axel_download(download_link, file[:filename])
+      axel_download(download_link, filename)
     end
-  }
+  end
 
   puts 'Done!'
 rescue Interrupt => e

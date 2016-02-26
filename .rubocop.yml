@@ -1,0 +1,14 @@
+Metrics/LineLength:
+  Max: 100
+ClassLength:
+  CountComments: false
+  Max: 200
+Metrics/MethodLength:
+  CountComments: false
+  Max: 35
+Metrics/AbcSize:
+  Max: 50
+Metrics/PerceivedComplexity:
+  Max: 20
+Metrics/CyclomaticComplexity:
+  Max: 20
