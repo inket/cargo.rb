@@ -710,15 +710,23 @@ begin
     end
   end
 
+  one_file = chosen_group[:files].count == 1
   chosen_group[:files].each do |file|
-    download_link = UpToBox.get_download_link(file)
     filename = file[:filename]
     filename.gsub!(/.+?(?=\.(?:part|mkv|mp4))/, chosen_group[:name])
 
-    if options[:wget]
-      wget_download(download_link, filename)
-    else
-      axel_download(download_link, filename)
+    wget = options[:wget]
+    file_exists = File.exist?(filename)
+    resume_file_exists = File.exist?("#{filename}.st")
+
+    if one_file || (file_exists && resume_file_exists) || !file_exists || wget
+      download_link = UpToBox.get_download_link(file)
+
+      if wget
+        wget_download(download_link, filename)
+      else
+        axel_download(download_link, filename)
+      end
     end
   end
 
