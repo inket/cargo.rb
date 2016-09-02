@@ -716,8 +716,10 @@ begin
     filename.gsub!(/.+?(?=\.(?:part|mkv|mp4))/, chosen_group[:name])
 
     wget = options[:wget]
-    file_exists = File.exist?(filename)
-    resume_file_exists = File.exist?("#{filename}.st")
+    download_path = "#{Dir.home}/Downloads/#{filename}"
+
+    file_exists = File.exist?(download_path)
+    resume_file_exists = File.exist?("#{download_path}.st")
 
     if one_file || (file_exists && resume_file_exists) || !file_exists || wget
       download_link = UpToBox.get_download_link(file)
