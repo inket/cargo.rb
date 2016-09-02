@@ -698,18 +698,6 @@ begin
 
   Helper.put_header "You chose #{chosen_group[:name]}"
 
-  scripts_count = `ps ax`.scan(%r{/cargo.rb(?:\s|$)}).count
-  scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
-
-  if scripts_count > 1
-    puts 'Waiting for other cargo download to finish...'
-    while scripts_count > 1
-      sleep(5)
-      scripts_count = `ps ax`.scan(%r{/cargo.rb(?:\s|$)}).count
-      scripts_count = `ps ax`.scan(/cargo.rb(?:\s|$)/).count if scripts_count == 0
-    end
-  end
-
   one_file = chosen_group[:files].count == 1
   chosen_group[:files].each do |file|
     filename = file[:filename]
