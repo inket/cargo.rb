@@ -72,7 +72,7 @@ end
 class LinkScanner
   def self.scan_for_ub_links(text)
     direct = text.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
-    text.scan(%r{go4up.com/dl/[a-z\d]{12}}im).flatten.uniq.collect do |go4up_link|
+    text.scan(%r{go4up.com/dl/[a-z\d]{12,14}}im).flatten.uniq.collect do |go4up_link|
       s = open("http://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s
       s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
