@@ -77,6 +77,12 @@ class LinkScanner
       s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
     end
+    text.scan(%r{(multiup.org/download/[a-z\d]+/.*?)(?:'|"|<)}im).flatten.uniq.collect do |multiup_link|
+      url = "https://#{multiup_link.sub('multiup.org/download/', 'multiup.org/en/mirror/')}"
+      s = open(url).read.to_s
+      s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+      direct += s
+    end
 
     direct
   end
