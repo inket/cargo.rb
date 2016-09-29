@@ -251,7 +251,7 @@ class UpToBox
     Helper.attempt_and_raise(3) do
       resp = Net::HTTP.get_response(URI(url))
       page = resp.body
-      dead = (resp.code.to_i != 200) || page.include?('File not found')
+      dead = (resp.code.to_i != 200) || page.include?('the file you want is not available')
     end
 
     id = url.split('/').last
