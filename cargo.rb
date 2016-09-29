@@ -629,9 +629,6 @@ class Main
     if shown_groups.count == 0
       Helper.put_header 'No results.'
       exit
-    elsif shown_groups.count == 1
-      Helper.put_header 'Single result, proceeding...'
-      return 0
     end
 
     selected = List.list_paginate "Choose a file (nav. using arrows and 'n', 'p') ", shown_groups
