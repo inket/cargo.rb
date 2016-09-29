@@ -251,7 +251,7 @@ class UpToBox
     Helper.attempt_and_raise(3) do
       resp = Net::HTTP.get_response(URI(url))
       page = resp.body
-      dead = (resp.code.to_i != 200)
+      dead = (resp.code.to_i != 200) || page.include?('File not found')
     end
 
     id = url.split('/').last
@@ -282,10 +282,7 @@ class UpToBox
     # detect multipart files and organize them in groups
     grouped_files = []
     files.each do |file|
-      if file[:dead]
-        grouped_files << { name: file[:url], files: [], dead: true }
-        next
-      end
+      next if file[:dead]
 
       correct_group = grouped_files.find { |group| group[:name] == file[:noextension] }
       if correct_group
