@@ -31,7 +31,7 @@ OptionParser.new do |opts|
   opts.separator 'Examples:'
   opts.separator '    cargo detective'
   opts.separator '    cargo -w'
-  opts.separator '    cargo -d http://uptobox.com/hrfow01yixy4 http://go4up.com/dl/7a3115e52d50'
+  opts.separator '    cargo -d https://uptobox.com/hrfow01yixy4 https://go4up.com/dl/7a3115e52d50'
 end.parse!
 
 if !options[:wget] && `which axel`.strip == ''
@@ -71,16 +71,18 @@ end
 # A link scanner for handling all the supported hosters and scanning for their links
 class LinkScanner
   def self.scan_for_ub_links(text)
-    direct = text.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+    direct = text.scan(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+
     text.scan(%r{go4up.com/dl/[a-z\d]{12,14}}im).flatten.uniq.collect do |go4up_link|
       s = open("https://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s
-      s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+      s = s.scan(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
     end
+
     text.scan(%r{(multiup.org/download/[a-z\d]+/.*?)(?:'|"|<)}im).flatten.uniq.collect do |multiup_link|
       url = "https://#{multiup_link.sub('multiup.org/download/', 'multiup.org/en/mirror/')}"
       s = open(url).read.to_s
-      s = s.scan(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
+      s = s.scan(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
     end
 
@@ -238,7 +240,7 @@ class UpToBox
     files = []
 
     urls.each do |url|
-      next if url.match(%r{http://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).nil?
+      next if url.match(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).nil?
       files << check_file(url)
     end
 
@@ -342,9 +344,11 @@ class UpToBox
         end
       end
 
-      directlink = result.body.scan(%r{(http://.{1,10}\.uptobox.com/d/.*?)(?:'|")}i).flatten.first
+      directlink = result.body.scan(%r{(https?://.{1,10}\.uptobox.com/d/.*?)(?:'|")}i).flatten.first
 
-      if !directlink || !directlink.include?('uptobox.com/d/')
+      if directlink && directlink.include?('uptobox.com/d/')
+        directlink.sub!("http://", "https://")
+      else
         raise StandardError, "Couldn't get direct link for download."
       end
     end
@@ -398,7 +402,7 @@ class Shows
     result = []
 
     website = @website.gsub('.', '\\.')
-    sm_regex = %r{<loc>(http://(?:www\.)?#{website}/([^<]+?))/</loc>.*?<lastmod>(.*?)</lastmod>}im
+    sm_regex = %r{<loc>(https?://(?:www\.)?#{website}/([^<]+?))/</loc>.*?<lastmod>(.*?)</lastmod>}im
 
     sitemap = open(sm_url).read.to_s
     releases = sitemap.scan(sm_regex).uniq
