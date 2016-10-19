@@ -346,9 +346,7 @@ class UpToBox
 
       directlink = result.body.scan(%r{(https?://.{1,10}\.uptobox.com/d/.*?)(?:'|")}i).flatten.first
 
-      if directlink && directlink.include?('uptobox.com/d/')
-        directlink.sub!("http://", "https://")
-      else
+      if !directlink || !directlink.include?('uptobox.com/d/')
         raise StandardError, "Couldn't get direct link for download."
       end
     end
