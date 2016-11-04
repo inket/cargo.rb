@@ -328,13 +328,13 @@ class UpToBox
                "&method_free=&method_premium&down_direct=1&fname=#{file[:fname]}"
         result = http.post(uri.path, data, 'Referer' => file[:url])
 
-        wait_message = result.body.scan(%r{(You have to wait.*?)<br}i).flatten.first
+        wait_message = result.body.scan(%r{(you can wait.*?)<br}i).flatten.first
         wait = !wait_message.nil?
 
         skipped_countdown = !result.body.scan(/Skipped countdown/i).flatten.first.nil?
 
         if wait
-          puts wait_message
+          puts wait_message.sub("you can wait", "You have to wait")
           sleep 60
         elsif skipped_countdown
           puts 'Waiting for countdown...'
