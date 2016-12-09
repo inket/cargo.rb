@@ -390,10 +390,17 @@ class Shows
   end
 
   def self.old_sm_url
-    month = (Time.now.month - 1).to_s
-    month = "0#{month}" if month.length == 1
+    year = Time.now.year
+    month = Time.now.month - 1
 
-    "http://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
+    if month == 0
+      month = 12
+      year += 1
+    end
+
+    month = "0#{month}" if month < 10
+
+    "http://www.#{@website}/sitemap-pt-post-#{year}-#{month}.xml"
   end
 
   def self.on_demand(filter = nil, show_movies = false)
