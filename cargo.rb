@@ -449,6 +449,9 @@ class Shows
   def self.releases_for(reference)
     source = (open "http://#{@website}/#{CGI.escape(reference)}").read.to_s
 
+    # remove head cause it has some irrelevant links in it
+    source = source.gsub(/<head.*?<\/head>/im, '')
+
     # remove sections that contain multipart links because we have better one-click links
     source = source.gsub(/info3.*?info2/im, '')
 
