@@ -27,12 +27,30 @@ OptionParser.new do |opts|
     options[:urls] = ARGV.join(' ')
   end
 
+  opts.on('-u', '--update', 'Update cargo.rb') do
+    options[:update] = true
+  end
+
   opts.separator ''
   opts.separator 'Examples:'
   opts.separator '    cargo detective'
   opts.separator '    cargo -w'
   opts.separator '    cargo -d https://uptobox.com/hrfow01yixy4 https://go4up.com/dl/7a3115e52d50'
 end.parse!
+
+if options[:update]
+  puts 'Updating cargo...'
+  new_script = open("https://raw.githubusercontent.com/inket/cargo.rb/master/cargo.rb").read.to_s
+
+  if new_script && new_script.strip != ""
+    File.open(__FILE__, "w") do |file|
+      file.write(new_script)
+    end
+  end
+
+  puts 'Updated.'
+  exit
+end
 
 if !options[:wget] && `which axel`.strip == ''
   puts 'Axel is not installed. Defaulting to wget...'
