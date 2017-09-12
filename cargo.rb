@@ -391,7 +391,7 @@ end
 
 # Handling the source website's loading, scanning and other tasks.
 class Shows
-  @website = 'looc.yellavldd'.reverse # don't attract search engines!
+  @website = 'skcor.yellavldd'.reverse # don't attract search engines!
   @us_regex = /(?:-|\.)S\d{2}(E\d{2}){1,2}(?:-|\.)/i
   @uk_regex = /(?:-|\.)\d{1,2}x\d{2}(?:-|\.)/i
   @other_regex = /(?:-|\.)\d{4}(?:-|\.)\d{2}(?:-|\.)\d{2}(?:-|\.)/i
