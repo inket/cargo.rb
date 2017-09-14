@@ -284,7 +284,7 @@ class UpToBox
       rand = page.scan(/(?:'|")rand(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
       fname = page.scan(/(?:'|")fname(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
       size = page.scan(/para_title.*?\(\s*(.*?)\s*\)/im).flatten.first
-      cleaner = '?_?))looc|skcor|gro|ten:?(.\\:?(yellavldd?_'.reverse
+      cleaner = '?_?))looc|skcor|gro|ten|em:?(.\\:?(yellavldd?_'.reverse
       filename = fname.gsub(/#{cleaner}/im, '')
 
       noextension = filename.split('.')[0..-2].join('.')
@@ -391,7 +391,7 @@ end
 
 # Handling the source website's loading, scanning and other tasks.
 class Shows
-  @website = 'skcor.yellavldd'.reverse # don't attract search engines!
+  @website = 'em.yellavldd'.reverse # don't attract search engines!
   @us_regex = /(?:-|\.)S\d{2}(E\d{2}){1,2}(?:-|\.)/i
   @uk_regex = /(?:-|\.)\d{1,2}x\d{2}(?:-|\.)/i
   @other_regex = /(?:-|\.)\d{4}(?:-|\.)\d{2}(?:-|\.)\d{2}(?:-|\.)/i
@@ -404,7 +404,7 @@ class Shows
     month = Time.now.month.to_s
     month = "0#{month}" if month.length == 1
 
-    "http://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
+    "https://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
   end
 
   def self.old_sm_url
@@ -418,7 +418,7 @@ class Shows
 
     month = "0#{month}" if month < 10
 
-    "http://www.#{@website}/sitemap-pt-post-#{year}-#{month}.xml"
+    "https://www.#{@website}/sitemap-pt-post-#{year}-#{month}.xml"
   end
 
   def self.on_demand(filter = nil, show_movies = false)
@@ -465,7 +465,7 @@ class Shows
   end
 
   def self.releases_for(reference)
-    source = (open "http://#{@website}/#{CGI.escape(reference)}").read.to_s
+    source = (open "https://#{@website}/#{CGI.escape(reference)}").read.to_s
 
     # remove head cause it has some irrelevant links in it
     source = source.gsub(/<head.*?<\/head>/im, '')
