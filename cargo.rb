@@ -92,7 +92,10 @@ class LinkScanner
     direct = text.scan(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
 
     text.scan(%r{go4up.com/dl/[a-z\d]{12,14}}im).flatten.uniq.collect do |go4up_link|
-      s = open("https://#{go4up_link.gsub('/dl/', '/rd/')}/2").read.to_s
+      s = open("http://dl.#{go4up_link.sub('/dl/', '/rd/')}/2").read.to_s
+      s = s.scan(/document.writeln.*?\)/im).flatten.first
+      next unless s
+      s = CGI.unescape(s)
       s = s.scan(%r{https?://(?:www\.)?uptobox\.com/[a-z\d]{12}}im).flatten.uniq
       direct += s
     end
