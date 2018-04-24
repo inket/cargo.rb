@@ -281,12 +281,12 @@ class UpToBox
 
     if dead
       puts "#{url} - Dead link"
-      rand, filename, noextension = 'DEAD'
+      filename, noextension = 'DEAD'
       size = '0'
     else
-      rand = page.scan(/(?:'|")rand(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
-      fname = page.scan(/(?:'|")fname(?:'|") value=(?:'|")(.*?)(?:'|")/im).flatten.first
-      size = page.scan(/para_title.*?\(\s*(.*?)\s*\)/im).flatten.first
+      form = page.scan(/<form .*?<\/form>/im).flatten.first
+      fname = page.scan(/<title>(.*?)<\/title>/im).flatten.first
+      size = form.scan(/<h1>#{fname} \((.*?)\)/im).flatten.first
       cleaner = '?_?))looc|skcor|gro|ten|em:?(.\\:?(yellavldd?_'.reverse
       filename = fname.gsub(/#{cleaner}/im, '')
 
@@ -295,7 +295,7 @@ class UpToBox
     end
 
     {
-      url: url, id: id, rand: rand,
+      url: url, id: id,
       fname: fname, filename: filename, noextension: noextension,
       dead: dead, size: Helper.to_bytes(size)
     }
@@ -345,9 +345,7 @@ class UpToBox
       loop do
         uri = URI(file[:url])
         http = Net::HTTP.new(uri.host)
-        data = "rand=#{file[:rand]}&op=download2&id=#{file[:id]}&referer="\
-               "&method_free=&method_premium&down_direct=1&fname=#{file[:fname]}"
-        result = http.post(uri.path, data, 'Referer' => file[:url])
+        result = http.post(uri.path, nil, 'Referer' => file[:url])
 
         wait_message = result.body.scan(%r{(you can wait.*?)<br}i).flatten.first
         wait = !wait_message.nil?
@@ -365,9 +363,9 @@ class UpToBox
         end
       end
 
-      directlink = result.body.scan(%r{(https?://.{1,10}\.uptobox.com/d/.*?)(?:'|")}i).flatten.first
+      directlink = result.body.scan(%r{(https?://.{1,10}\.uptobox.com/dl/.*?)(?:'|")}i).flatten.first
 
-      if !directlink || !directlink.include?('uptobox.com/d/')
+      if !directlink || !directlink.include?('uptobox.com/dl/')
         raise StandardError, "Couldn't get direct link for download."
       end
     end
