@@ -403,25 +403,16 @@ class Shows
   @strict_other_regex = /\A[^\s]+(?:-|\.)\d{4}(?:-|\.)\d{2}(?:-|\.)\d{2}(?:-|\.)[^\s]+\z/i
   @weird_regex = /Download (.*?) Here/i
 
-  def self.sm_url
+  def self.sm_urls
     month = Time.now.month.to_s
     month = "0#{month}" if month.length == 1
 
-    "https://www.#{@website}/sitemap-pt-post-#{Time.now.year}-#{month}.xml"
-  end
+    sm_source = open("https://www.#{@website}/sitemap_index.xml").read.to_s
+    sm_numbers = sm_source.scan(/post-sitemap(\d+)\.xml/i).flatten.map(&:to_i).sort
 
-  def self.old_sm_url
-    year = Time.now.year
-    month = Time.now.month - 1
-
-    if month == 0
-      month = 12
-      year += 1
+    [sm_numbers.pop, sm_numbers.pop].map do |number|
+      "https://www.#{@website}/post-sitemap#{number}.xml"
     end
-
-    month = "0#{month}" if month < 10
-
-    "https://www.#{@website}/sitemap-pt-post-#{year}-#{month}.xml"
   end
 
   def self.on_demand(filter = nil, show_movies = false)
@@ -430,10 +421,11 @@ class Shows
     website = @website.gsub('.', '\\.')
     sm_regex = %r{<loc>(https?://(?:www\.)?#{website}/([^<]+?))/</loc>.*?<lastmod>(.*?)</lastmod>}im
 
+    sm_url, old_sm_url = sm_urls
     sitemap = open(sm_url).read.to_s
-    releases = sitemap.scan(sm_regex).uniq
+    releases = sitemap.scan(sm_regex).uniq.reverse
     sitemap = open(old_sm_url).read.to_s
-    releases += sitemap.scan(sm_regex).uniq
+    releases += sitemap.scan(sm_regex).uniq.reverse
 
     # only keep shows in the array if not specified
     unless show_movies
